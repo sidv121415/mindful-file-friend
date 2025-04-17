@@ -12,10 +12,12 @@ import { FileItem } from "@/types/file";
 
 export function FileExplorer() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<FileItem[]>([]);
   const [command, setCommand] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [commandSuggestions] = useState<string[]>([
     "Show all PDF files",
     "Find duplicate files",
@@ -30,9 +32,53 @@ export function FileExplorer() {
     targetFolder?: string;
   } | null>(null);
 
-  // Mock function to load files from a folder
-  const loadFilesFromFolder = (folderPath: string) => {
-    // In a real app, this would connect to a backend API to get files
+  const loadFilesFromDirectoryHandle = async (dirHandle: FileSystemDirectoryHandle) => {
+    setIsLoading(true);
+    try {
+      const fileItems: FileItem[] = [];
+      
+      for await (const entry of dirHandle.values()) {
+        try {
+          if (entry.kind === 'file') {
+            const file = await entry.getFile();
+            const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
+            
+            fileItems.push({
+              id: crypto.randomUUID(),
+              name: file.name,
+              type: fileExtension,
+              size: file.size,
+              modified: new Date(file.lastModified),
+              path: `${dirHandle.name}/${file.name}`,
+              handle: entry
+            });
+          }
+        } catch (error) {
+          console.error(`Error processing entry ${entry.name}:`, error);
+        }
+      }
+      
+      setFiles(fileItems);
+      setFilteredFiles(fileItems);
+      generateSuggestions(fileItems);
+      
+      toast({
+        title: "Files Loaded",
+        description: `Loaded ${fileItems.length} files from ${dirHandle.name}`,
+      });
+    } catch (error) {
+      console.error("Error loading files:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load files from the selected folder",
+        variant: "destructive"
+      });
+      loadMockFiles(dirHandle.name);
+    }
+    setIsLoading(false);
+  };
+
+  const loadMockFiles = (folderPath: string) => {
     const mockFiles: FileItem[] = [
       {
         id: "1",
@@ -105,11 +151,9 @@ export function FileExplorer() {
     generateSuggestions(mockFiles);
   };
 
-  // Generate automatic suggestions based on file analysis
   const generateSuggestions = (files: FileItem[]) => {
     const newSuggestions = [];
     
-    // Find potential duplicates (same size and type)
     const sizeTypeMap = new Map<string, FileItem[]>();
     files.forEach(file => {
       const key = `${file.size}-${file.type}`;
@@ -125,13 +169,11 @@ export function FileExplorer() {
       }
     });
     
-    // Find large files
     const largeFiles = files.filter(file => file.size > 10 * 1024 * 1024); // > 10MB
     if (largeFiles.length > 0) {
       newSuggestions.push(`Large files found: ${largeFiles.map(f => f.name).join(", ")}`);
     }
     
-    // Suggest organization by file type
     const fileTypes = new Set(files.map(file => file.type));
     if (fileTypes.size > 3) {
       newSuggestions.push(`Consider organizing files by type: ${Array.from(fileTypes).join(", ")}`);
@@ -173,9 +215,17 @@ export function FileExplorer() {
     }
   };
 
-  const handleFolderSelect = (folderPath: string) => {
+  const handleFolderSelect = (folderPath: string, dirHandle?: FileSystemDirectoryHandle) => {
     setSelectedFolder(folderPath);
-    loadFilesFromFolder(folderPath);
+    
+    if (dirHandle) {
+      setDirectoryHandle(dirHandle);
+      loadFilesFromDirectoryHandle(dirHandle);
+    } else {
+      setDirectoryHandle(null);
+      loadMockFiles(folderPath);
+    }
+    
     toast({
       title: "Folder Selected",
       description: `Analyzing files in ${folderPath}`,
@@ -203,9 +253,20 @@ export function FileExplorer() {
             >
               Change
             </Button>
+            {directoryHandle && (
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                Real Folder
+              </span>
+            )}
           </div>
           
-          {/* Operation Result Alert */}
+          {isLoading && (
+            <div className="flex items-center justify-center p-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <span className="ml-2">Loading files...</span>
+            </div>
+          )}
+          
           {operationResult && (
             <Alert className={operationResult.type === "success" ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}>
               <FolderPlus className="h-4 w-4 text-green-600" />
@@ -222,17 +283,19 @@ export function FileExplorer() {
             </Alert>
           )}
           
-          <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
-            <h3 className="flex items-center text-amber-800 font-medium mb-2">
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Automatic Suggestions
-            </h3>
-            <ul className="space-y-1 text-amber-700">
-              {suggestions.map((suggestion, index) => (
-                <li key={index} className="text-sm">• {suggestion}</li>
-              ))}
-            </ul>
-          </div>
+          {suggestions.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
+              <h3 className="flex items-center text-amber-800 font-medium mb-2">
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Automatic Suggestions
+              </h3>
+              <ul className="space-y-1 text-amber-700">
+                {suggestions.map((suggestion, index) => (
+                  <li key={index} className="text-sm">• {suggestion}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           
           <div className="flex flex-col space-y-2">
             <div className="flex space-x-2">
@@ -291,7 +354,7 @@ export function FileExplorer() {
             </div>
           </div>
           
-          <FileList files={filteredFiles} />
+          {!isLoading && <FileList files={filteredFiles} />}
         </>
       )}
     </div>
