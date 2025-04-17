@@ -14,6 +14,7 @@ interface ProcessResult {
   files: FileItem[];
   action: string;
   message?: string;
+  targetFolder?: string;
 }
 
 export class NLPProcessor {
@@ -25,6 +26,38 @@ export class NLPProcessor {
     
     const normalizedCommand = command.toLowerCase().trim();
     console.log("Processing command:", normalizedCommand);
+    
+    // Handle file movement commands
+    if (this.containsAny(normalizedCommand, ["move", "copy", "transfer", "relocate"])) {
+      // Handle moving documents to a folder
+      if (this.containsAny(normalizedCommand, ["document", "documents", "doc", "docs", "pdf", "pdfs", "text", "texts"]) && 
+          this.containsAny(normalizedCommand, ["to", "into", "in"]) &&
+          this.containsAny(normalizedCommand, ["folder", "directory", "location"])) {
+        
+        // Extract target folder name if specified
+        let targetFolder = "New Folder";
+        
+        // Try to find a folder name after keywords like "to", "into", "in"
+        const folderMatch = normalizedCommand.match(/(to|into|in)\s+(?:the|a|an)?\s*(new\s+)?(\w+\s*\w*)\s+(folder|directory|location)/i);
+        if (folderMatch && folderMatch[3]) {
+          const extractedName = folderMatch[3].trim();
+          if (extractedName && extractedName !== "new") {
+            targetFolder = extractedName.charAt(0).toUpperCase() + extractedName.slice(1);
+          }
+        }
+        
+        // Filter document files
+        const docTypes = ["pdf", "doc", "docx", "txt", "rtf", "odt", "xlsx", "pptx"];
+        const docFiles = files.filter(file => docTypes.includes(file.type));
+        
+        return {
+          files: docFiles,
+          action: "move",
+          targetFolder: targetFolder,
+          message: `Moving ${docFiles.length} document(s) to '${targetFolder}'`
+        };
+      }
+    }
     
     // Handle search/filter commands - more flexible matching
     if (this.containsAny(normalizedCommand, ["show", "find", "display", "list", "get", "search", "filter", "where"])) {
@@ -213,7 +246,7 @@ export class NLPProcessor {
       return {
         files: files,
         action: "unknown",
-        message: "I'm not sure how to process that command. Try phrases like 'Show PDF files', 'Find duplicates', 'Sort by size', or 'Show recent files'."
+        message: "I'm not sure how to process that command. Try phrases like 'Show PDF files', 'Find duplicates', 'Sort by size', 'Show recent files', or 'Move documents to new folder'."
       };
     }
     

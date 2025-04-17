@@ -2,12 +2,13 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Folder, File, Search, AlertTriangle, Copy, History } from "lucide-react";
+import { Folder, File, Search, AlertTriangle, Copy, History, FolderPlus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { FolderSelector } from "./FolderSelector";
 import { FileList } from "./FileList";
 import { NLPProcessor } from "../utils/nlpProcessor";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "@/components/ui/command";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 // Mock file data structure
 interface FileItem {
@@ -34,8 +35,14 @@ export function FileExplorer() {
     "Find large files",
     "Show most recent files",
     "Sort by name",
-    "Find images"
+    "Find images",
+    "Move documents to new folder"
   ]);
+  const [operationResult, setOperationResult] = useState<{
+    type: string;
+    message: string;
+    targetFolder?: string;
+  } | null>(null);
 
   // Mock function to load files from a folder
   const loadFilesFromFolder = (folderPath: string) => {
@@ -152,6 +159,7 @@ export function FileExplorer() {
     if (!command.trim()) return;
     
     setIsProcessing(true);
+    setOperationResult(null);
     
     // Use our NLP processor to interpret the command
     const result = NLPProcessor.processCommand(command, files);
@@ -165,6 +173,25 @@ export function FileExplorer() {
     }
     
     if (result.message) {
+      // Handle move operations
+      if (result.action === "move" && result.targetFolder) {
+        // In a real app, we would actually move the files on the backend
+        // For demo, we'll simulate a successful move operation
+        const docTypes = ["pdf", "doc", "docx", "txt", "rtf", "odt", "xlsx", "pptx"];
+        const remainingFiles = files.filter(file => !docTypes.includes(file.type));
+        
+        // Update UI to show remaining files
+        setFiles(remainingFiles);
+        setFilteredFiles(remainingFiles);
+        
+        // Show operation result with folder details
+        setOperationResult({
+          type: "success",
+          message: `${result.files.length} document(s) moved successfully!`,
+          targetFolder: result.targetFolder
+        });
+      }
+      
       toast({
         title: "Command Processed",
         description: result.message,
@@ -205,6 +232,23 @@ export function FileExplorer() {
             </Button>
           </div>
           
+          {/* Operation Result Alert */}
+          {operationResult && (
+            <Alert className={operationResult.type === "success" ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}>
+              <FolderPlus className="h-4 w-4 text-green-600" />
+              <AlertTitle className="text-green-800">Operation Completed</AlertTitle>
+              <AlertDescription className="text-green-700">
+                {operationResult.message}
+                {operationResult.targetFolder && (
+                  <div className="mt-2 p-2 bg-green-100 rounded-md flex items-center">
+                    <Folder className="h-4 w-4 mr-2" />
+                    <span>New folder created: <strong>{operationResult.targetFolder}</strong></span>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+          
           {suggestions.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
               <h3 className="flex items-center text-amber-800 font-medium mb-2">
@@ -223,7 +267,7 @@ export function FileExplorer() {
             <div className="flex space-x-2">
               <Command className="rounded-lg border flex-1">
                 <CommandInput 
-                  placeholder="Enter command (e.g., 'Show all PDFs', 'Find duplicates', 'Sort by size')"
+                  placeholder="Enter command (e.g., 'Show all PDFs', 'Find duplicates', 'Move documents to new folder')"
                   value={command}
                   onValueChange={setCommand}
                   className="flex-1"
@@ -279,7 +323,7 @@ export function FileExplorer() {
             </div>
             
             <div className="flex flex-wrap gap-2">
-              {["Show PDFs", "Find duplicates", "Sort by size", "Recent files"].map((quickCmd) => (
+              {["Show PDFs", "Find duplicates", "Sort by size", "Recent files", "Move documents"].map((quickCmd) => (
                 <Button 
                   key={quickCmd} 
                   variant="outline" 
