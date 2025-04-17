@@ -1,24 +1,6 @@
-
-// A more robust NLP processor to handle natural language commands for file operations
-
-interface FileItem {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  modified: Date;
-  path: string;
-}
-
-interface ProcessResult {
-  files: FileItem[];
-  action: string;
-  message?: string;
-  targetFolder?: string;
-}
+import { FileItem } from "@/types/file";
 
 export class NLPProcessor {
-  // Process natural language commands with more flexibility
   static processCommand(command: string, files: FileItem[]): ProcessResult {
     if (!command || !command.trim()) {
       return { files, action: "none" };
@@ -261,4 +243,11 @@ export class NLPProcessor {
   private static containsAny(command: string, phrases: string[]): boolean {
     return phrases.some(phrase => command.includes(phrase));
   }
+}
+
+interface ProcessResult {
+  files: FileItem[];
+  action: string;
+  message?: string;
+  targetFolder?: string;
 }

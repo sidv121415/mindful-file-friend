@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Folder, File, Search, AlertTriangle, Copy, History, FolderPlus } from "lucide-react";
+import { Folder, File, Search, AlertTriangle, FolderPlus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { FolderSelector } from "./FolderSelector";
 import { FileList } from "./FileList";
@@ -25,18 +24,13 @@ export function FileExplorer() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<FileItem[]>([]);
   const [command, setCommand] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [commandHistory, setCommandHistory] = useState<string[]>([]);
-  const [commandSuggestions, setCommandSuggestions] = useState<string[]>([
+  const [commandSuggestions] = useState<string[]>([
     "Show all PDF files",
     "Find duplicate files",
-    "Sort by size (largest first)",
+    "Sort by size",
     "Find large files",
-    "Show most recent files",
-    "Sort by name",
-    "Find images",
-    "Move documents to new folder"
+    "Show most recent files"
   ]);
   const [operationResult, setOperationResult] = useState<{
     type: string;
@@ -154,40 +148,28 @@ export function FileExplorer() {
     setSuggestions(newSuggestions);
   };
 
-  // Process natural language command
   const processCommand = () => {
     if (!command.trim()) return;
     
     setIsProcessing(true);
     setOperationResult(null);
     
-    // Use our NLP processor to interpret the command
     const result = NLPProcessor.processCommand(command, files);
     
     setFilteredFiles(result.files);
     setIsProcessing(false);
     
-    // Add to command history
-    if (!commandHistory.includes(command)) {
-      setCommandHistory(prev => [command, ...prev].slice(0, 10));
-    }
-    
     if (result.message) {
-      // Handle move operations
       if (result.action === "move" && result.targetFolder) {
-        // In a real app, we would actually move the files on the backend
-        // For demo, we'll simulate a successful move operation
         const docTypes = ["pdf", "doc", "docx", "txt", "rtf", "odt", "xlsx", "pptx"];
         const remainingFiles = files.filter(file => !docTypes.includes(file.type));
         
-        // Update UI to show remaining files
         setFiles(remainingFiles);
         setFilteredFiles(remainingFiles);
         
-        // Show operation result with folder details
         setOperationResult({
           type: "success",
-          message: `${result.files.length} document(s) moved successfully!`,
+          message: result.message,
           targetFolder: result.targetFolder
         });
       }
@@ -249,25 +231,23 @@ export function FileExplorer() {
             </Alert>
           )}
           
-          {suggestions.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
-              <h3 className="flex items-center text-amber-800 font-medium mb-2">
-                <AlertTriangle className="h-4 w-4 mr-2" />
-                Automatic Suggestions
-              </h3>
-              <ul className="space-y-1 text-amber-700">
-                {suggestions.map((suggestion, index) => (
-                  <li key={index} className="text-sm">• {suggestion}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
+            <h3 className="flex items-center text-amber-800 font-medium mb-2">
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Automatic Suggestions
+            </h3>
+            <ul className="space-y-1 text-amber-700">
+              {suggestions.map((suggestion, index) => (
+                <li key={index} className="text-sm">• {suggestion}</li>
+              ))}
+            </ul>
+          </div>
           
           <div className="flex flex-col space-y-2">
             <div className="flex space-x-2">
               <Command className="rounded-lg border flex-1">
                 <CommandInput 
-                  placeholder="Enter command (e.g., 'Show all PDFs', 'Find duplicates', 'Move documents to new folder')"
+                  placeholder="Enter command (e.g., 'Move documents', 'Show PDFs')"
                   value={command}
                   onValueChange={setCommand}
                   className="flex-1"
@@ -296,22 +276,6 @@ export function FileExplorer() {
                             {sugg}
                           </CommandItem>
                         ))}
-                    </CommandGroup>
-                  )}
-                  {commandHistory.length > 0 && (
-                    <CommandGroup heading="History">
-                      {commandHistory.map(cmd => (
-                        <CommandItem 
-                          key={cmd}
-                          onSelect={() => {
-                            setCommand(cmd);
-                            processCommand();
-                          }}
-                        >
-                          <History className="h-4 w-4 mr-2 opacity-50" />
-                          {cmd}
-                        </CommandItem>
-                      ))}
                     </CommandGroup>
                   )}
                 </CommandList>
