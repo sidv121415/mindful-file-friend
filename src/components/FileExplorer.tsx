@@ -8,16 +8,7 @@ import { FileList } from "./FileList";
 import { NLPProcessor } from "../utils/nlpProcessor";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-
-// Mock file data structure
-interface FileItem {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  modified: Date;
-  path: string;
-}
+import { FileItem } from "@/types/file";
 
 export function FileExplorer() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -32,6 +23,7 @@ export function FileExplorer() {
     "Find large files",
     "Show most recent files"
   ]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [operationResult, setOperationResult] = useState<{
     type: string;
     message: string;
@@ -190,7 +182,6 @@ export function FileExplorer() {
     });
   };
 
-  // Handle command selection from suggestions
   const handleCommandSelect = (selectedCommand: string) => {
     setCommand(selectedCommand);
     processCommand();
