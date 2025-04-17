@@ -1,5 +1,5 @@
 
-// A simplified NLP processor to handle natural language commands for file operations
+// A more robust NLP processor to handle natural language commands for file operations
 
 interface FileItem {
   id: string;
@@ -17,24 +17,31 @@ interface ProcessResult {
 }
 
 export class NLPProcessor {
-  // Process natural language commands
+  // Process natural language commands with more flexibility
   static processCommand(command: string, files: FileItem[]): ProcessResult {
-    const normalizedCommand = command.toLowerCase().trim();
+    if (!command || !command.trim()) {
+      return { files, action: "none" };
+    }
     
-    // Intent and entity recognition (simplified)
-    if (this.matchIntent(normalizedCommand, ["show", "find", "display", "list", "get"])) {
-      // File type filtering
-      if (this.matchEntity(normalizedCommand, ["pdf", "pdfs", "document", "documents"])) {
-        const pdfFiles = files.filter(file => file.type === "pdf");
+    const normalizedCommand = command.toLowerCase().trim();
+    console.log("Processing command:", normalizedCommand);
+    
+    // Handle search/filter commands - more flexible matching
+    if (this.containsAny(normalizedCommand, ["show", "find", "display", "list", "get", "search", "filter", "where"])) {
+      // File type filtering - enhanced to handle more variations
+      if (this.containsAny(normalizedCommand, ["pdf", "pdfs", "document", "documents", "doc", "docx", "text files"])) {
+        const docTypes = ["pdf", "doc", "docx", "txt"];
+        const docFiles = files.filter(file => docTypes.includes(file.type));
         return {
-          files: pdfFiles,
+          files: docFiles,
           action: "filter",
-          message: `Found ${pdfFiles.length} PDF documents`
+          message: `Found ${docFiles.length} document files`
         };
       }
       
-      if (this.matchEntity(normalizedCommand, ["image", "images", "jpg", "jpeg", "png"])) {
-        const imageFiles = files.filter(file => ["jpg", "jpeg", "png", "gif"].includes(file.type));
+      if (this.containsAny(normalizedCommand, ["image", "images", "jpg", "jpeg", "png", "photo", "photos", "picture", "pictures"])) {
+        const imageTypes = ["jpg", "jpeg", "png", "gif", "svg", "webp"];
+        const imageFiles = files.filter(file => imageTypes.includes(file.type));
         return {
           files: imageFiles,
           action: "filter",
@@ -42,17 +49,28 @@ export class NLPProcessor {
         };
       }
       
-      if (this.matchEntity(normalizedCommand, ["video", "videos", "mp4", "movie", "movies"])) {
-        const videoFiles = files.filter(file => ["mp4", "mov", "avi", "mkv"].includes(file.type));
+      if (this.containsAny(normalizedCommand, ["video", "videos", "mp4", "movie", "movies", "film", "films"])) {
+        const videoTypes = ["mp4", "mov", "avi", "mkv", "webm"];
+        const videoFiles = files.filter(file => videoTypes.includes(file.type));
         return {
           files: videoFiles,
           action: "filter",
           message: `Found ${videoFiles.length} video files`
         };
       }
+
+      if (this.containsAny(normalizedCommand, ["audio", "music", "sound", "mp3", "wav"])) {
+        const audioTypes = ["mp3", "wav", "ogg", "flac", "aac"];
+        const audioFiles = files.filter(file => audioTypes.includes(file.type));
+        return {
+          files: audioFiles,
+          action: "filter",
+          message: `Found ${audioFiles.length} audio files`
+        };
+      }
       
-      // Size filtering
-      if (this.matchEntity(normalizedCommand, ["large", "big"])) {
+      // Size filtering with improved detection
+      if (this.containsAny(normalizedCommand, ["large", "big", "huge", "largest"])) {
         const largeFiles = files.filter(file => file.size > 5 * 1024 * 1024); // > 5MB
         return {
           files: largeFiles,
@@ -61,7 +79,7 @@ export class NLPProcessor {
         };
       }
       
-      if (this.matchEntity(normalizedCommand, ["small"])) {
+      if (this.containsAny(normalizedCommand, ["small", "tiny", "smallest"])) {
         const smallFiles = files.filter(file => file.size < 1024 * 1024); // < 1MB
         return {
           files: smallFiles,
@@ -70,8 +88,8 @@ export class NLPProcessor {
         };
       }
       
-      // Date filtering
-      if (this.matchEntity(normalizedCommand, ["recent", "newest", "latest"])) {
+      // Date filtering with more natural phrases
+      if (this.containsAny(normalizedCommand, ["recent", "newest", "latest", "new", "last", "just added"])) {
         const recentFiles = [...files].sort((a, b) => b.modified.getTime() - a.modified.getTime());
         return {
           files: recentFiles.slice(0, 10), // Top 10 most recent
@@ -80,7 +98,7 @@ export class NLPProcessor {
         };
       }
       
-      if (this.matchEntity(normalizedCommand, ["old", "oldest"])) {
+      if (this.containsAny(normalizedCommand, ["old", "oldest", "earlier", "first created"])) {
         const oldestFiles = [...files].sort((a, b) => a.modified.getTime() - b.modified.getTime());
         return {
           files: oldestFiles.slice(0, 10), // Top 10 oldest
@@ -88,10 +106,25 @@ export class NLPProcessor {
           message: "Showing the oldest files"
         };
       }
+      
+      // Name-based filtering
+      if (normalizedCommand.includes("name")) {
+        const nameMatch = normalizedCommand.match(/name\s+(?:contains|with|having|like|containing)?\s*["']?([a-z0-9_\s-]+)["']?/i);
+        if (nameMatch && nameMatch[1]) {
+          const searchTerm = nameMatch[1].trim();
+          const matchedFiles = files.filter(file => file.name.toLowerCase().includes(searchTerm));
+          return {
+            files: matchedFiles,
+            action: "filter",
+            message: `Found ${matchedFiles.length} files with name containing "${searchTerm}"`
+          };
+        }
+      }
     }
     
-    // Advanced intent: Find duplicates
-    if (this.matchIntent(normalizedCommand, ["duplicate", "duplicates", "same"])) {
+    // Advanced intent: Find duplicates with more variations
+    if (this.containsAny(normalizedCommand, ["duplicate", "duplicates", "same", "copies", "similar", "identical"])) {
+      console.log("Looking for duplicates");
       const potentialDuplicates: FileItem[] = [];
       const sizeTypeMap = new Map<string, FileItem[]>();
       
@@ -109,6 +142,7 @@ export class NLPProcessor {
         }
       });
       
+      console.log(`Found ${potentialDuplicates.length} potential duplicates`);
       return {
         files: potentialDuplicates,
         action: "filter",
@@ -116,12 +150,70 @@ export class NLPProcessor {
       };
     }
     
-    // Command not recognized
+    // Sort commands
+    if (this.containsAny(normalizedCommand, ["sort", "order", "arrange"])) {
+      if (this.containsAny(normalizedCommand, ["size", "largest", "smallest"])) {
+        if (this.containsAny(normalizedCommand, ["desc", "descending", "large", "largest", "biggest"])) {
+          const sortedFiles = [...files].sort((a, b) => b.size - a.size);
+          return {
+            files: sortedFiles,
+            action: "filter",
+            message: "Files sorted by size (largest first)"
+          };
+        } else {
+          const sortedFiles = [...files].sort((a, b) => a.size - b.size);
+          return {
+            files: sortedFiles,
+            action: "filter",
+            message: "Files sorted by size (smallest first)"
+          };
+        }
+      }
+      
+      if (this.containsAny(normalizedCommand, ["date", "time", "newest", "oldest", "recent"])) {
+        if (this.containsAny(normalizedCommand, ["desc", "descending", "new", "newest", "recent", "latest"])) {
+          const sortedFiles = [...files].sort((a, b) => b.modified.getTime() - a.modified.getTime());
+          return {
+            files: sortedFiles,
+            action: "filter",
+            message: "Files sorted by date (newest first)"
+          };
+        } else {
+          const sortedFiles = [...files].sort((a, b) => a.modified.getTime() - b.modified.getTime());
+          return {
+            files: sortedFiles,
+            action: "filter",
+            message: "Files sorted by date (oldest first)"
+          };
+        }
+      }
+      
+      if (this.containsAny(normalizedCommand, ["name", "alphabetical", "alpha"])) {
+        if (this.containsAny(normalizedCommand, ["desc", "descending", "reverse", "z-a"])) {
+          const sortedFiles = [...files].sort((a, b) => b.name.localeCompare(a.name));
+          return {
+            files: sortedFiles,
+            action: "filter",
+            message: "Files sorted alphabetically (Z-A)"
+          };
+        } else {
+          const sortedFiles = [...files].sort((a, b) => a.name.localeCompare(b.name));
+          return {
+            files: sortedFiles,
+            action: "filter",
+            message: "Files sorted alphabetically (A-Z)"
+          };
+        }
+      }
+    }
+    
+    // Command not recognized but attempted
     if (normalizedCommand.length > 0) {
+      console.log("Command not understood:", normalizedCommand);
       return {
         files: files,
         action: "unknown",
-        message: "Command not understood. Please try something like 'Show all PDFs' or 'Find large files'."
+        message: "I'm not sure how to process that command. Try phrases like 'Show PDF files', 'Find duplicates', 'Sort by size', or 'Show recent files'."
       };
     }
     
@@ -132,13 +224,8 @@ export class NLPProcessor {
     };
   }
   
-  // Helper method to match intent from command
-  private static matchIntent(command: string, intents: string[]): boolean {
-    return intents.some(intent => command.includes(intent));
-  }
-  
-  // Helper method to match entity from command
-  private static matchEntity(command: string, entities: string[]): boolean {
-    return entities.some(entity => command.includes(entity));
+  // Improved helper method to check if command contains any of the phrases
+  private static containsAny(command: string, phrases: string[]): boolean {
+    return phrases.some(phrase => command.includes(phrase));
   }
 }

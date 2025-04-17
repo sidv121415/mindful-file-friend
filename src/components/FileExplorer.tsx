@@ -2,11 +2,12 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Folder, File, Search, AlertTriangle, Copy } from "lucide-react";
+import { Folder, File, Search, AlertTriangle, Copy, History } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { FolderSelector } from "./FolderSelector";
 import { FileList } from "./FileList";
 import { NLPProcessor } from "../utils/nlpProcessor";
+import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "@/components/ui/command";
 
 // Mock file data structure
 interface FileItem {
@@ -25,6 +26,16 @@ export function FileExplorer() {
   const [command, setCommand] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [commandSuggestions, setCommandSuggestions] = useState<string[]>([
+    "Show all PDF files",
+    "Find duplicate files",
+    "Sort by size (largest first)",
+    "Find large files",
+    "Show most recent files",
+    "Sort by name",
+    "Find images"
+  ]);
 
   // Mock function to load files from a folder
   const loadFilesFromFolder = (folderPath: string) => {
@@ -69,6 +80,30 @@ export function FileExplorer() {
         size: 1024 * 512, // 512KB - same as Image1.jpg
         modified: new Date(2023, 4, 11),
         path: `${folderPath}/Image1_copy.jpg`,
+      },
+      {
+        id: "6",
+        name: "Music1.mp3",
+        type: "mp3",
+        size: 1024 * 1024 * 5, // 5MB
+        modified: new Date(2023, 5, 20),
+        path: `${folderPath}/Music1.mp3`,
+      },
+      {
+        id: "7",
+        name: "Spreadsheet.xlsx",
+        type: "xlsx",
+        size: 1024 * 800, // 800KB
+        modified: new Date(2023, 6, 5),
+        path: `${folderPath}/Spreadsheet.xlsx`,
+      },
+      {
+        id: "8",
+        name: "Presentation.pptx",
+        type: "pptx",
+        size: 1024 * 1024 * 3.5, // 3.5MB
+        modified: new Date(2023, 6, 20),
+        path: `${folderPath}/Presentation.pptx`,
       },
     ];
 
@@ -124,12 +159,9 @@ export function FileExplorer() {
     setFilteredFiles(result.files);
     setIsProcessing(false);
     
-    if (result.action === "save") {
-      const savedLocation = "/saved-results";
-      toast({
-        title: "Files Processed",
-        description: `Results saved to ${savedLocation}`,
-      });
+    // Add to command history
+    if (!commandHistory.includes(command)) {
+      setCommandHistory(prev => [command, ...prev].slice(0, 10));
     }
     
     if (result.message) {
@@ -147,6 +179,12 @@ export function FileExplorer() {
       title: "Folder Selected",
       description: `Analyzing files in ${folderPath}`,
     });
+  };
+
+  // Handle command selection from suggestions
+  const handleCommandSelect = (selectedCommand: string) => {
+    setCommand(selectedCommand);
+    processCommand();
   };
 
   return (
@@ -181,17 +219,77 @@ export function FileExplorer() {
             </div>
           )}
           
-          <div className="flex space-x-2">
-            <Input
-              placeholder="Enter command (e.g., 'Show all PDFs', 'Find duplicates')"
-              value={command}
-              onChange={(e) => setCommand(e.target.value)}
-              className="flex-1"
-            />
-            <Button onClick={processCommand} disabled={isProcessing}>
-              <Search className="h-4 w-4 mr-2" />
-              Process
-            </Button>
+          <div className="flex flex-col space-y-2">
+            <div className="flex space-x-2">
+              <Command className="rounded-lg border flex-1">
+                <CommandInput 
+                  placeholder="Enter command (e.g., 'Show all PDFs', 'Find duplicates', 'Sort by size')"
+                  value={command}
+                  onValueChange={setCommand}
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      processCommand();
+                    }
+                  }}
+                />
+                <CommandList>
+                  {command && (
+                    <CommandGroup heading="Try these commands">
+                      {commandSuggestions
+                        .filter(sugg => 
+                          sugg.toLowerCase().includes(command.toLowerCase()) && 
+                          sugg.toLowerCase() !== command.toLowerCase()
+                        )
+                        .map(sugg => (
+                          <CommandItem 
+                            key={sugg}
+                            onSelect={() => {
+                              setCommand(sugg);
+                              processCommand();
+                            }}
+                          >
+                            {sugg}
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  )}
+                  {commandHistory.length > 0 && (
+                    <CommandGroup heading="History">
+                      {commandHistory.map(cmd => (
+                        <CommandItem 
+                          key={cmd}
+                          onSelect={() => {
+                            setCommand(cmd);
+                            processCommand();
+                          }}
+                        >
+                          <History className="h-4 w-4 mr-2 opacity-50" />
+                          {cmd}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                </CommandList>
+              </Command>
+              <Button onClick={processCommand} disabled={isProcessing}>
+                <Search className="h-4 w-4 mr-2" />
+                Process
+              </Button>
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              {["Show PDFs", "Find duplicates", "Sort by size", "Recent files"].map((quickCmd) => (
+                <Button 
+                  key={quickCmd} 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleCommandSelect(quickCmd)}
+                >
+                  {quickCmd}
+                </Button>
+              ))}
+            </div>
           </div>
           
           <FileList files={filteredFiles} />
