@@ -1,4 +1,3 @@
-
 import { FileItem } from "@/types/file";
 
 export class NLPProcessor {
@@ -18,7 +17,7 @@ export class NLPProcessor {
     
     // Extract file types mentioned in command
     const fileTypesRaw = normalizedCommand.match(fileTypePattern) || [];
-    const fileTypes = [...new Set(fileTypesRaw.map(type => type.toLowerCase()))]; // Remove duplicates
+    const fileTypes = [...new Set(fileTypesRaw.map(type => type.toLowerCase()))];
     
     // Extract size constraints
     const sizeMatch = normalizedCommand.match(sizePattern);
@@ -37,7 +36,7 @@ export class NLPProcessor {
         case "kb": return sizeThreshold * 1024;
         case "mb": return sizeThreshold * 1024 * 1024;
         case "gb": return sizeThreshold * 1024 * 1024 * 1024;
-        default: return sizeThreshold * 1024; // Default to KB
+        default: return sizeThreshold * 1024;
       }
     })();
     
@@ -47,33 +46,17 @@ export class NLPProcessor {
     const bracketMatch = normalizedCommand.match(folderBracketPattern);
     
     if (bracketMatch) {
-      // Prioritize bracketed folder names
       targetFolder = bracketMatch[1].trim();
     } else if (folderMatch) {
       targetFolder = folderMatch[1].trim();
-    } else if (this.containsAny(normalizedCommand, ["move", "copy"]) && !targetFolder) {
-      // Default folder naming based on content
-      if (fileTypes.includes("screenshot") || fileTypes.includes("image") || 
-          fileTypes.includes("jpg") || fileTypes.includes("png")) {
-        targetFolder = "Screenshots";
-      } else if (fileTypes.includes("document") || fileTypes.includes("pdf") || fileTypes.includes("doc")) {
-        targetFolder = "Documents";
-      } else if (fileTypes.includes("video") || fileTypes.includes("mp4")) {
-        targetFolder = "Videos";
-      } else {
-        const timestamp = new Date().toISOString().replace(/[-:.]/g, "").substring(0, 14);
-        targetFolder = `Organized_${timestamp}`;
-      }
     }
-    
-    // Handle file movement commands
+
+    // Handle move/copy commands as download operations
     if (this.containsAny(normalizedCommand, ["move", "copy", "transfer", "relocate"])) {
-      // Filter files based on type and size constraints
-      let selectedFiles: FileItem[] = [...files];
+      let selectedFiles = [...files];
       
       // Apply file type filtering if specified
       if (fileTypes.length > 0) {
-        // Map common terms to file extensions
         const typeMap: Record<string, string[]> = {
           "document": ["pdf", "doc", "docx", "txt", "rtf", "odt", "xlsx", "pptx"],
           "image": ["jpg", "jpeg", "png", "gif", "svg", "webp"],
@@ -81,18 +64,9 @@ export class NLPProcessor {
           "screenshot": ["jpg", "jpeg", "png", "gif"],
           "video": ["mp4", "mov", "avi", "mkv", "webm"],
           "audio": ["mp3", "wav", "ogg", "flac", "aac"],
-          "pdf": ["pdf"],
-          "doc": ["doc", "docx"],
-          "text": ["txt"],
-          "jpg": ["jpg", "jpeg"],
-          "png": ["png"],
-          "mp4": ["mp4"],
-          "mp3": ["mp3"],
         };
         
-        // Expand file types to include all related extensions
         const expandedTypes = fileTypes.flatMap(type => typeMap[type] || [type]);
-        
         selectedFiles = selectedFiles.filter(file => 
           expandedTypes.some(ext => file.type.toLowerCase() === ext)
         );
@@ -111,15 +85,15 @@ export class NLPProcessor {
         }
       }
       
-      // Handle the move operation
-      if (selectedFiles.length > 0 && targetFolder) {
+      // Convert move operation to download
+      if (selectedFiles.length > 0) {
         return {
           files: selectedFiles,
-          action: "move",
+          action: "download",
           targetFolder: targetFolder,
-          message: `Moving ${selectedFiles.length} file(s) to folder '${targetFolder}'`
+          message: `Will download ${selectedFiles.length} file(s)${targetFolder ? ` (originally requested to move to '${targetFolder}')` : ''}`
         };
-      } else if (selectedFiles.length === 0) {
+      } else {
         return {
           files: files,
           action: "none",

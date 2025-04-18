@@ -26,7 +26,7 @@ declare global {
   }
   
   interface FileSystemHandle {
-    readonly kind: 'file' | 'directory';
-    readonly name: string;
+    kind: 'file' | 'directory';
+    name: string;
   }
 }

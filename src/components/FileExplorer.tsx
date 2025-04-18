@@ -225,18 +225,23 @@ export function FileExplorer() {
     
     const result = NLPProcessor.processCommand(command, files);
     
+    if (result.action === "download") {
+      result.files.forEach(file => {
+        if (file.handle) {
+          downloadFile(file.handle);
+        }
+      });
+      
+      toast({
+        title: "Download Started",
+        description: result.message,
+      });
+    }
+    
     setFilteredFiles(result.files);
     setIsProcessing(false);
     
-    if (result.message) {
-      if (result.action === "download" && result.files.length > 0) {
-        result.files.forEach(file => {
-          if (file.handle) {
-            downloadFile(file.handle);
-          }
-        });
-      }
-      
+    if (result.message && result.action !== "download") {
       toast({
         title: "Command Processed",
         description: result.message,
