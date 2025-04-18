@@ -15,18 +15,22 @@ declare global {
     showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
   }
   
-  interface FileSystemDirectoryHandle extends FileSystemHandle {
+  interface FileSystemDirectoryHandle {
     entries: () => AsyncIterableIterator<[string, FileSystemHandle]>;
     getDirectoryHandle: (name: string, options?: { create?: boolean }) => Promise<FileSystemDirectoryHandle>;
     getFileHandle: (name: string, options?: { create?: boolean }) => Promise<FileSystemFileHandle>;
+    readonly kind: 'directory';
+    readonly name: string;
   }
   
-  interface FileSystemFileHandle extends FileSystemHandle {
+  interface FileSystemFileHandle {
     getFile: () => Promise<File>;
+    readonly kind: 'file';
+    readonly name: string;
   }
   
   interface FileSystemHandle {
-    kind: 'file' | 'directory';
-    name: string;
+    readonly kind: 'file' | 'directory';
+    readonly name: string;
   }
 }
