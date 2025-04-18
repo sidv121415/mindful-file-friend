@@ -1,24 +1,17 @@
-
 import { useMemo, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { File, FileText, FileImage, FileVideo, FileAudio, FileArchive, HelpCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { File, FileText, FileImage, FileVideo, FileAudio, FileArchive, HelpCircle, Download } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-
-interface FileItem {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  modified: Date;
-  path: string;
-}
+import { FileItem } from "@/types/file";
 
 interface FileListProps {
   files: FileItem[];
+  onDownload: (file: FileItem) => void;
 }
 
-export function FileList({ files }: FileListProps) {
+export function FileList({ files, onDownload }: FileListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   
   const filteredFiles = useMemo(() => {
@@ -31,7 +24,6 @@ export function FileList({ files }: FileListProps) {
     );
   }, [files, searchTerm]);
   
-  // Format file size
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + " B";
     else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
@@ -39,7 +31,6 @@ export function FileList({ files }: FileListProps) {
     else return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
   };
   
-  // Get appropriate icon for file type
   const getFileIcon = (fileType: string) => {
     switch(fileType.toLowerCase()) {
       case 'pdf':
@@ -116,6 +107,16 @@ export function FileList({ files }: FileListProps) {
                 <TableCell>{formatDistanceToNow(file.modified, { addSuffix: true })}</TableCell>
                 <TableCell className="text-muted-foreground truncate max-w-[200px]">
                   {file.path}
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDownload(file)}
+                    className="h-8 w-8"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}

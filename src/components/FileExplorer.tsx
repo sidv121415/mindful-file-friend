@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Folder, File, Search, AlertTriangle, FolderPlus } from "lucide-react";
+import { Folder, File, Search, AlertTriangle, FolderPlus, Download } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { FolderSelector } from "./FolderSelector";
 import { FileList } from "./FileList";
@@ -10,6 +9,40 @@ import { NLPProcessor } from "../utils/nlpProcessor";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { FileItem } from "@/types/file";
+
+const downloadFile = async (fileHandle: FileSystemFileHandle | undefined) => {
+  if (!fileHandle) {
+    toast({
+      title: "Error",
+      description: "File not available for download",
+      variant: "destructive"
+    });
+    return;
+  }
+
+  try {
+    const file = await fileHandle.getFile();
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Success",
+      description: `Downloaded ${file.name}`,
+    });
+  } catch (error) {
+    toast({
+      title: "Error",
+      description: "Failed to download file",
+      variant: "destructive"
+    });
+  }
+};
 
 export function FileExplorer() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -39,7 +72,6 @@ export function FileExplorer() {
     try {
       const fileItems: FileItem[] = [];
       
-      // The entries() method must be used to iterate through directory contents
       for await (const [name, entry] of dirHandle.entries()) {
         try {
           if (entry.kind === 'file') {
@@ -197,19 +229,11 @@ export function FileExplorer() {
     setIsProcessing(false);
     
     if (result.message) {
-      if (result.action === "move" && result.targetFolder) {
-        // In a real implementation, you would actually move the files
-        // For now, we'll just simulate by removing them from the display
-        const movedFileIds = new Set(result.files.map(f => f.id));
-        const remainingFiles = files.filter(file => !movedFileIds.has(file.id));
-        
-        setFiles(remainingFiles);
-        setFilteredFiles(remainingFiles);
-        
-        setOperationResult({
-          type: "success",
-          message: result.message,
-          targetFolder: result.targetFolder
+      if (result.action === "download" && result.files.length > 0) {
+        result.files.forEach(file => {
+          if (file.handle) {
+            downloadFile(file.handle);
+          }
         });
       }
       
@@ -359,7 +383,12 @@ export function FileExplorer() {
             </div>
           </div>
           
-          {!isLoading && <FileList files={filteredFiles} />}
+          {!isLoading && (
+            <FileList 
+              files={filteredFiles} 
+              onDownload={(file) => file.handle && downloadFile(file.handle)} 
+            />
+          )}
         </>
       )}
     </div>

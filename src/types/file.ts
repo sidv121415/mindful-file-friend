@@ -6,7 +6,7 @@ export interface FileItem {
   size: number;
   modified: Date;
   path: string;
-  handle?: FileSystemFileHandle; // Changed from FileSystemHandle to FileSystemFileHandle
+  handle?: FileSystemFileHandle;
 }
 
 // Add TypeScript interfaces for the File System Access API
@@ -15,19 +15,18 @@ declare global {
     showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
   }
   
-  interface FileSystemDirectoryHandle {
-    kind: 'directory';
-    name: string;
+  interface FileSystemDirectoryHandle extends FileSystemHandle {
     entries: () => AsyncIterableIterator<[string, FileSystemHandle]>;
     getDirectoryHandle: (name: string, options?: { create?: boolean }) => Promise<FileSystemDirectoryHandle>;
     getFileHandle: (name: string, options?: { create?: boolean }) => Promise<FileSystemFileHandle>;
   }
   
-  interface FileSystemFileHandle {
-    kind: 'file';
-    name: string;
+  interface FileSystemFileHandle extends FileSystemHandle {
     getFile: () => Promise<File>;
   }
   
-  type FileSystemHandle = FileSystemFileHandle | FileSystemDirectoryHandle;
+  interface FileSystemHandle {
+    readonly kind: 'file' | 'directory';
+    readonly name: string;
+  }
 }
