@@ -28,11 +28,13 @@ export function FolderSelector({ onSelect }: FolderSelectorProps) {
         return;
       }
 
-      // Show directory picker dialog
-      const dirHandle = await window.showDirectoryPicker();
-      const folderPath = dirHandle.name;
-      onSelect(folderPath, dirHandle);
-      setIsOpen(false);
+      // Show directory picker dialog using the proper TypeScript types
+      const dirHandle = await window.showDirectoryPicker?.();
+      if (dirHandle) {
+        const folderPath = dirHandle.name;
+        onSelect(folderPath, dirHandle);
+        setIsOpen(false);
+      }
     } catch (error) {
       // User cancelled the dialog or another error occurred
       if (error instanceof Error && error.name !== 'AbortError') {

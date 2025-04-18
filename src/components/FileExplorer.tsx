@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,8 @@ export function FileExplorer() {
     "Find duplicate files",
     "Sort by size",
     "Find large files",
-    "Show most recent files"
+    "Show most recent files",
+    "Move screenshots larger than 2MB to [SCREENSHOTS]"
   ]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [operationResult, setOperationResult] = useState<{
@@ -37,7 +39,8 @@ export function FileExplorer() {
     try {
       const fileItems: FileItem[] = [];
       
-      for await (const entry of dirHandle.values()) {
+      // The entries() method must be used to iterate through directory contents
+      for await (const [name, entry] of dirHandle.entries()) {
         try {
           if (entry.kind === 'file') {
             const file = await entry.getFile();
@@ -50,11 +53,11 @@ export function FileExplorer() {
               size: file.size,
               modified: new Date(file.lastModified),
               path: `${dirHandle.name}/${file.name}`,
-              handle: entry
+              handle: entry as FileSystemFileHandle
             });
           }
         } catch (error) {
-          console.error(`Error processing entry ${entry.name}:`, error);
+          console.error(`Error processing entry ${name}:`, error);
         }
       }
       
@@ -163,7 +166,7 @@ export function FileExplorer() {
       sizeTypeMap.get(key)?.push(file);
     });
     
-    sizeTypeMap.forEach((items, key) => {
+    sizeTypeMap.forEach((items) => {
       if (items.length > 1) {
         newSuggestions.push(`Possible duplicates found: ${items.map(i => i.name).join(", ")}`);
       }
@@ -195,8 +198,10 @@ export function FileExplorer() {
     
     if (result.message) {
       if (result.action === "move" && result.targetFolder) {
-        const docTypes = ["pdf", "doc", "docx", "txt", "rtf", "odt", "xlsx", "pptx"];
-        const remainingFiles = files.filter(file => !docTypes.includes(file.type));
+        // In a real implementation, you would actually move the files
+        // For now, we'll just simulate by removing them from the display
+        const movedFileIds = new Set(result.files.map(f => f.id));
+        const remainingFiles = files.filter(file => !movedFileIds.has(file.id));
         
         setFiles(remainingFiles);
         setFilteredFiles(remainingFiles);
